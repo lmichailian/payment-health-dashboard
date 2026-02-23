@@ -15,6 +15,7 @@ Payment Health Dashboard for Meraki Pharmacy - monitors authorization rates, tra
 - React Query for data fetching
 - Recharts for visualizations
 - Docker for database
+- next-themes for dark mode
 
 ## Common Commands
 
@@ -60,11 +61,11 @@ payment-health-dashboard/
 │   │   │   ├── DeclineReasonsChart.tsx
 │   │   │   ├── FilterBar.tsx
 │   │   │   └── AlertsBanner.tsx
-│   │   ├── shared/      # Reusable components
+│   │   ├── shared/      # Reusable components (ThemeToggle, ErrorState, etc.)
 │   │   └── ui/          # shadcn/ui components
 │   ├── hooks/           # React Query hooks
 │   ├── lib/             # Utilities (prisma client, health calculations)
-│   ├── providers/       # React context providers
+│   ├── providers/       # React context providers (QueryProvider, ThemeProvider)
 │   └── types/           # TypeScript types
 └── docker-compose.yml   # PostgreSQL + Adminer
 ```
@@ -130,6 +131,22 @@ The seed script generates:
 3. Dashboard at http://localhost:3000
 4. Adminer (DB UI) at http://localhost:8080
 
+## Dark Mode / Theming
+
+The dashboard supports Light, Dark, and System themes via `next-themes`.
+
+**Key files:**
+- `src/providers/ThemeProvider.tsx` - Theme context wrapper
+- `src/components/shared/ThemeToggle.tsx` - Dropdown toggle component
+- `src/app/globals.css` - CSS variables for light/dark themes
+
+**Theme toggle location:** Dashboard header (top-right)
+
+**How it works:**
+- `ThemeProvider` wraps the app with `attribute="class"`
+- Adds `.dark` class to `<html>` element when dark mode is active
+- CSS variables in `globals.css` change based on `.dark` class
+
 ## Key Dependencies
 
 - `@tanstack/react-query` - Server state management
@@ -137,4 +154,5 @@ The seed script generates:
 - `prisma` / `@prisma/client` - Database ORM
 - `date-fns` - Date utilities
 - `lucide-react` - Icons
-- shadcn/ui components (button, card, select, calendar, etc.)
+- `next-themes` - Dark mode / theme management
+- shadcn/ui components (button, card, select, calendar, dropdown-menu, etc.)
