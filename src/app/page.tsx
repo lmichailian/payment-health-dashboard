@@ -20,6 +20,7 @@ import {
   TableSkeleton,
 } from '@/components/shared/Skeletons'
 import { ErrorState } from '@/components/shared/ErrorState'
+import { ThemeToggle } from '@/components/shared/ThemeToggle'
 
 // Hooks
 import { useAuthorizationMetrics } from '@/hooks/useAuthorizationMetrics'
@@ -110,8 +111,11 @@ export default function Dashboard() {
                 Meraki Pharmacy | Authorization Rate Monitoring
               </p>
             </div>
-            <div className="text-sm text-muted-foreground">
-              Last updated: {new Date().toLocaleString()}
+            <div className="flex items-center gap-4">
+              <div className="text-sm text-muted-foreground">
+                Last updated: {new Date().toLocaleString()}
+              </div>
+              <ThemeToggle />
             </div>
           </div>
         </div>
