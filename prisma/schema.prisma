@@ -1,0 +1,143 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Transaction status enum
+enum TransactionStatus {
+  approved
+  declined
+  pending
+  failed
+}
+
+// Alert severity enum
+enum AlertSeverity {
+  critical
+  warning
+  info
+}
+
+// Raw transactions table
+model Transaction {
+  id             String            @id @default(uuid())
+  transactionId  String            @unique @map("transaction_id")
+  amount         Decimal           @db.Decimal(20, 4)
+  currency       String            @db.Char(3)
+  status         TransactionStatus
+  processor      String            @db.VarChar(100)
+  paymentMethod  String            @map("payment_method") @db.VarChar(50)
+  country        String            @db.Char(2)
+  declineReason  String?           @map("decline_reason") @db.VarChar(255)
+  createdAt      DateTime          @default(now()) @map("created_at")
+  receivedAt     DateTime          @default(now()) @map("received_at")
+
+  @@index([createdAt(sort: Desc)])
+  @@index([processor, createdAt])
+  @@index([paymentMethod, createdAt])
+  @@index([country, createdAt])
+  @@index([status, createdAt])
+  @@map("transactions")
+}
+
+// Pre-aggregated metrics table for fast queries
+model AggregatedMetric {
+  id            Int      @id @default(autoincrement())
+  dateBucket    DateTime @map("date_bucket") @db.Date
+  hourBucket    Int?     @map("hour_bucket") @db.SmallInt
+  processor     String?  @db.VarChar(100)
+  paymentMethod String?  @map("payment_method") @db.VarChar(50)
+  country       String?  @db.Char(2)
+
+  totalAttempts  Int @default(0) @map("total_attempts")
+  approvedCount  Int @default(0) @map("approved_count")
+  declinedCount  Int @default(0) @map("declined_count")
+  failedCount    Int @default(0) @map("failed_count")
+  pendingCount   Int @default(0) @map("pending_count")
+
+  totalAmount    Decimal? @map("total_amount") @db.Decimal(20, 4)
+  approvedAmount Decimal? @map("approved_amount") @db.Decimal(20, 4)
+
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([dateBucket, hourBucket, processor, paymentMethod, country])
+  @@index([dateBucket(sort: Desc), processor])
+  @@index([dateBucket(sort: Desc), paymentMethod])
+  @@index([dateBucket(sort: Desc), country])
+  @@map("aggregated_metrics")
+}
+
+// Decline reason statistics
+model DeclineReasonStat {
+  id            Int      @id @default(autoincrement())
+  dateBucket    DateTime @map("date_bucket") @db.Date
+  processor     String?  @db.VarChar(100)
+  paymentMethod String?  @map("payment_method") @db.VarChar(50)
+  country       String?  @db.Char(2)
+  declineReason String   @map("decline_reason") @db.VarChar(255)
+
+  occurrences Int      @default(0)
+  percentage  Decimal? @db.Decimal(5, 2)
+
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([dateBucket, processor, paymentMethod, country, declineReason])
+  @@index([dateBucket(sort: Desc), occurrences(sort: Desc)])
+  @@map("decline_reason_stats")
+}
+
+// Alert configurations
+model AlertConfiguration {
+  id                       Int           @id @default(autoincrement())
+  alertName                String        @map("alert_name") @db.VarChar(255)
+  metricType               String        @map("metric_type") @db.VarChar(50)
+  threshold                Decimal       @db.Decimal(5, 2)
+
+  processor                String?       @db.VarChar(100)
+  paymentMethod            String?       @map("payment_method") @db.VarChar(50)
+  country                  String?       @db.Char(2)
+
+  evaluationWindowMinutes  Int           @default(60) @map("evaluation_window_minutes")
+  cooldownMinutes          Int           @default(30) @map("cooldown_minutes")
+
+  isActive                 Boolean       @default(true) @map("is_active")
+  createdAt                DateTime      @default(now()) @map("created_at")
+  updatedAt                DateTime      @default(now()) @updatedAt @map("updated_at")
+
+  alerts                   AlertHistory[]
+
+  @@map("alert_configurations")
+}
+
+// Alert history
+model AlertHistory {
+  id              Int                @id @default(autoincrement())
+  alertConfigId   Int                @map("alert_config_id")
+  alertConfig     AlertConfiguration @relation(fields: [alertConfigId], references: [id])
+
+  triggeredAt     DateTime           @default(now()) @map("triggered_at")
+  resolvedAt      DateTime?          @map("resolved_at")
+
+  metricValue     Decimal?           @map("metric_value") @db.Decimal(5, 2)
+  thresholdValue  Decimal?           @map("threshold_value") @db.Decimal(5, 2)
+
+  processor       String?            @db.VarChar(100)
+  paymentMethod   String?            @map("payment_method") @db.VarChar(50)
+  country         String?            @db.Char(2)
+
+  severity        AlertSeverity      @default(warning)
+  message         String?            @db.Text
+
+  isResolved      Boolean            @default(false) @map("is_resolved")
+
+  @@index([triggeredAt(sort: Desc)])
+  @@index([isResolved, triggeredAt(sort: Desc)])
+  @@map("alert_history")
+}

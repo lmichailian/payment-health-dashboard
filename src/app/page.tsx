@@ -1,65 +1,246 @@
-import Image from "next/image";
+'use client'
 
-export default function Home() {
+import { useState } from 'react'
+import { subDays } from 'date-fns'
+import { Activity, TrendingDown, XCircle } from 'lucide-react'
+
+// Components
+import { AuthorizationRateCard } from '@/components/dashboard/AuthorizationRateCard'
+import { MetricCard } from '@/components/dashboard/MetricCard'
+import { TrendChart } from '@/components/dashboard/TrendChart'
+import { ProcessorComparisonChart } from '@/components/dashboard/ProcessorComparisonChart'
+import { PaymentMethodBreakdown } from '@/components/dashboard/PaymentMethodBreakdown'
+import { GeographicBreakdown } from '@/components/dashboard/GeographicBreakdown'
+import { DeclineReasonsChart } from '@/components/dashboard/DeclineReasonsChart'
+import { FilterBar } from '@/components/dashboard/FilterBar'
+import { AlertsBanner } from '@/components/dashboard/AlertsBanner'
+import {
+  KPICardSkeleton,
+  ChartSkeleton,
+  TableSkeleton,
+} from '@/components/shared/Skeletons'
+import { ErrorState } from '@/components/shared/ErrorState'
+
+// Hooks
+import { useAuthorizationMetrics } from '@/hooks/useAuthorizationMetrics'
+import { useProcessorComparison } from '@/hooks/useProcessorComparison'
+import { useTrendData } from '@/hooks/useTrendData'
+import { usePaymentMethods } from '@/hooks/usePaymentMethods'
+import { useCountryMetrics } from '@/hooks/useCountryMetrics'
+import { useDeclineReasons } from '@/hooks/useDeclineReasons'
+import { useAlerts, useResolveAlert } from '@/hooks/useAlerts'
+
+// Types
+import { DashboardFilters } from '@/types'
+
+export default function Dashboard() {
+  const [filters, setFilters] = useState<DashboardFilters>({
+    startDate: subDays(new Date(), 60),
+    endDate: new Date(),
+  })
+
+  // Fetch data with filters
+  const {
+    data: metricsData,
+    isLoading: metricsLoading,
+    error: metricsError,
+    refetch: refetchMetrics,
+  } = useAuthorizationMetrics(filters)
+
+  const {
+    data: processorData,
+    isLoading: processorLoading,
+    error: processorError,
+  } = useProcessorComparison(filters)
+
+  const {
+    data: trendData,
+    isLoading: trendLoading,
+    error: trendError,
+  } = useTrendData(filters, 60)
+
+  const {
+    data: paymentMethodData,
+    isLoading: paymentMethodLoading,
+    error: paymentMethodError,
+  } = usePaymentMethods(filters)
+
+  const {
+    data: countryData,
+    isLoading: countryLoading,
+    error: countryError,
+  } = useCountryMetrics(filters)
+
+  const {
+    data: declineData,
+    isLoading: declineLoading,
+    error: declineError,
+  } = useDeclineReasons(filters)
+
+  const { data: alertsData } = useAlerts(false)
+  const resolveAlert = useResolveAlert()
+
+  const handleFilterChange = (newFilters: DashboardFilters) => {
+    setFilters(newFilters)
+  }
+
+  const handleDismissAlert = (alertId: number) => {
+    resolveAlert.mutate(alertId)
+  }
+
+  // Calculate additional metrics
+  const declineRate =
+    metricsData?.data?.totalAttempts && metricsData?.data?.declinedCount
+      ? (metricsData.data.declinedCount /
+          (metricsData.data.totalAttempts - (metricsData.data.pendingCount || 0))) *
+        100
+      : 0
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="border-b bg-card">
+        <div className="container mx-auto px-4 py-6">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+            <div>
+              <h1 className="text-2xl font-bold tracking-tight">
+                Payment Health Dashboard
+              </h1>
+              <p className="text-muted-foreground">
+                Meraki Pharmacy | Authorization Rate Monitoring
+              </p>
+            </div>
+            <div className="text-sm text-muted-foreground">
+              Last updated: {new Date().toLocaleString()}
+            </div>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+      </header>
+
+      <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Alerts Banner */}
+        {alertsData?.data && alertsData.data.length > 0 && (
+          <AlertsBanner
+            alerts={alertsData.data}
+            onDismiss={handleDismissAlert}
+          />
+        )}
+
+        {/* Filters */}
+        <FilterBar filters={filters} onFilterChange={handleFilterChange} />
+
+        {/* KPI Section */}
+        <section aria-label="Key Performance Indicators">
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            {metricsLoading ? (
+              <>
+                <KPICardSkeleton />
+                <KPICardSkeleton />
+                <KPICardSkeleton />
+              </>
+            ) : metricsError ? (
+              <div className="col-span-full">
+                <ErrorState
+                  message="Failed to load authorization metrics"
+                  onRetry={() => refetchMetrics()}
+                />
+              </div>
+            ) : metricsData?.data ? (
+              <>
+                <AuthorizationRateCard
+                  authRate={metricsData.data.authRate}
+                  totalAttempts={metricsData.data.totalAttempts}
+                  approvedCount={metricsData.data.approvedCount}
+                  declinedCount={metricsData.data.declinedCount}
+                  trend={metricsData.data.trend}
+                />
+                <MetricCard
+                  title="Transaction Volume"
+                  value={metricsData.data.totalAttempts}
+                  subtitle="Total transactions in period"
+                  icon={Activity}
+                />
+                <MetricCard
+                  title="Decline Rate"
+                  value={`${declineRate.toFixed(1)}%`}
+                  subtitle={`${metricsData.data.declinedCount.toLocaleString()} declined`}
+                  icon={XCircle}
+                  variant="danger"
+                />
+              </>
+            ) : null}
+          </div>
+        </section>
+
+        {/* Trend Chart */}
+        <section aria-label="Authorization Rate Trend">
+          {trendLoading ? (
+            <ChartSkeleton height={300} />
+          ) : trendError ? (
+            <ErrorState message="Failed to load trend data" />
+          ) : trendData?.data && trendData.data.length > 0 ? (
+            <TrendChart data={trendData.data} />
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              No trend data available for the selected period
+            </div>
+          )}
+        </section>
+
+        {/* Processor & Payment Method Comparison */}
+        <section aria-label="Performance Breakdown">
+          <div className="grid gap-6 lg:grid-cols-2">
+            {processorLoading ? (
+              <ChartSkeleton height={280} />
+            ) : processorError ? (
+              <ErrorState message="Failed to load processor data" />
+            ) : processorData?.data && processorData.data.length > 0 ? (
+              <ProcessorComparisonChart data={processorData.data} />
+            ) : null}
+
+            {paymentMethodLoading ? (
+              <ChartSkeleton height={280} />
+            ) : paymentMethodError ? (
+              <ErrorState message="Failed to load payment method data" />
+            ) : paymentMethodData?.data && paymentMethodData.data.length > 0 ? (
+              <PaymentMethodBreakdown data={paymentMethodData.data} />
+            ) : null}
+          </div>
+        </section>
+
+        {/* Geographic Breakdown */}
+        <section aria-label="Geographic Performance">
+          {countryLoading ? (
+            <TableSkeleton rows={3} />
+          ) : countryError ? (
+            <ErrorState message="Failed to load country data" />
+          ) : countryData?.data && countryData.data.length > 0 ? (
+            <GeographicBreakdown data={countryData.data} />
+          ) : null}
+        </section>
+
+        {/* Decline Reasons */}
+        <section aria-label="Decline Analysis">
+          {declineLoading ? (
+            <ChartSkeleton height={280} />
+          ) : declineError ? (
+            <ErrorState message="Failed to load decline reasons" />
+          ) : declineData?.data && declineData.data.length > 0 ? (
+            <DeclineReasonsChart
+              data={declineData.data}
+              totalDeclines={declineData.meta.totalDeclines}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+          ) : null}
+        </section>
+
+        {/* Footer */}
+        <footer className="border-t pt-6 mt-8">
+          <div className="flex flex-col md:flex-row justify-between items-center text-sm text-muted-foreground">
+            <p>Payment Health Dashboard - Meraki Pharmacy</p>
+            <p>Data refreshes automatically every minute</p>
+          </div>
+        </footer>
       </main>
     </div>
-  );
+  )
 }
